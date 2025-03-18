@@ -7,8 +7,6 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
-public @interface Column {
-    String name();
-    String type() default "VARCHAR(255)";  // Default type if not specified
-    boolean primaryKey() default false;
-}
+public @interface ManyToOne {
+    Class<?> targetEntity();
+} 
