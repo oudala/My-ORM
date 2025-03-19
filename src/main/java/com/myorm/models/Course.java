@@ -8,7 +8,7 @@ import com.myorm.annotations.Table;
 
 @Table(name = "courses")
 public class Course {
-    @Column(name = "id", type = "INT PRIMARY KEY")
+    @Column(name = "id", type = "INT", primaryKey = true)
     private int id;
 
     @Column(name = "title", type = "VARCHAR(255)")
@@ -17,4 +17,12 @@ public class Course {
     @ManyToMany(targetEntity = Student.class, joinTable = "student_courses", 
                 joinColumn = "course_id", inverseJoinColumn = "student_id")
     private List<Student> students;
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getTitle() {
+        return title;
+    }
 }
