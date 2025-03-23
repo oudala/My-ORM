@@ -60,12 +60,16 @@ public class Main {
         System.out.println("\n🔍 Testing Find Operations...");
         
         Student foundStudent = CRUDManager.findById(Student.class, student1.getId());
-        System.out.println("Found Student by ID: " + foundStudent.getName());
+        System.out.println("Found Student by ID: " + (foundStudent != null ? foundStudent.getName() : "Not found"));
 
         List<Student> allStudents = CRUDManager.findAll(Student.class);
         System.out.println("\nAll Students:");
-        for (Student s : allStudents) {
-            System.out.println("- " + s.getName());
+        if (allStudents != null && !allStudents.isEmpty()) {
+            for (Student s : allStudents) {
+                System.out.println("- " + s.getName());
+            }
+        } else {
+            System.out.println("No students found");
         }
 
         // 5. Test Delete Operation
@@ -74,7 +78,7 @@ public class Main {
         System.out.println("Deleted Student: " + student1.getName());
 
         allStudents = CRUDManager.findAll(Student.class);
-        System.out.println("Students after delete: " + allStudents.size());
+        System.out.println("Students after delete: " + (allStudents != null ? allStudents.size() : "null"));
 
         System.out.println("\n✅ All tests completed!\n");
 
@@ -114,7 +118,7 @@ public class Main {
 
                 // This code won't execute due to the error
                 Course transCourse = new Course();
-                transCourse.setTitle("Won't be created");
+               transCourse.setTitle("Won't be created");
                 CRUDManager.insert(transCourse);
             });
         } catch (Exception e) {
@@ -124,7 +128,45 @@ public class Main {
         // Verify the results
         System.out.println("\n🔍 Verifying Transaction Results:");
         List<Student> students = CRUDManager.findAll(Student.class);
-        System.out.println("Students in database: " + students.size());
-        students.forEach(s -> System.out.println("- " + s.getName()));
+        System.out.println("Students in database: " + (students != null ? students.size() : "null"));
+        if (students != null) {
+            students.forEach(s -> System.out.println("- " + s.getName()));
+        }
+
+        // Add this after your existing tests
+        System.out.println("\n🧪 Testing Cache...");
+
+        // Test cache miss then hit
+        Student student = new Student();
+        student.setName("Cache Test Student");
+        CRUDManager.insert(student);
+        System.out.println("Created student with ID: " + student.getId());
+
+        // First find - should be cache miss
+        Student found1 = CRUDManager.findById(Student.class, student.getId());
+        System.out.println("First find: " + (found1 != null ? found1.getName() : "Not found"));
+
+        // Second find - should be cache hit
+        Student found2 = CRUDManager.findById(Student.class, student.getId());
+        System.out.println("Second find: " + (found2 != null ? found2.getName() : "Not found"));
+
+        // Update student
+        student.setName("Updated Name");
+        CRUDManager.update(student);
+
+        // Find after update - should get updated value
+        Student found3 = CRUDManager.findById(Student.class, student.getId());
+        System.out.println("After update: " + (found3 != null ? found3.getName() : "Not found"));
+
+        // Delete student
+        CRUDManager.delete(Student.class, student.getId());
+
+        // Try to find deleted student - should be null
+        Student found4 = CRUDManager.findById(Student.class, student.getId());
+        System.out.println("After delete: " + (found4 == null ? "null" : found4.getName()));
+
+        // Print cache statistics
+        System.out.println("\n📊 Cache Statistics:");
+        System.out.println(CRUDManager.getCacheStats());
     }
 }

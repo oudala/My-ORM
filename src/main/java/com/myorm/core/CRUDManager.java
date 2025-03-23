@@ -14,9 +14,12 @@ import com.myorm.annotations.Table;
 import com.myorm.storage.DatabaseManager;
 import com.myorm.transaction.TransactionCallback;
 import com.myorm.transaction.TransactionManager;
+import com.myorm.cache.CacheManager;
 
 public class CRUDManager {
     
+    private static final CacheManager cacheManager = CacheManager.getInstance();
+
     public static <T> void insert(T entity) {
         Class<?> clazz = entity.getClass();
         if (!clazz.isAnnotationPresent(Table.class)) {
@@ -83,6 +86,15 @@ public class CRUDManager {
 
             System.out.println("✅ Entity inserted successfully with ID: " + getEntityId(entity));
 
+            // After successful insert, update cache
+            try {
+                int id = getEntityId(entity);
+                @SuppressWarnings("unchecked") T cachedEntity = (T) entity;
+                cacheManager.put((Class<T>)entity.getClass(), id, cachedEntity);
+            } catch (IllegalAccessException e) {
+                System.err.println("❌ Error updating cache: " + e.getMessage());
+            }
+
         } catch (SQLException | IllegalAccessException e) {
             System.err.println("❌ Error inserting entity: " + e.getMessage());
         }
@@ -104,6 +116,13 @@ public class CRUDManager {
             throw new IllegalArgumentException("Class is not a table entity");
         }
 
+        // Check cache first
+        T cachedEntity = cacheManager.get(clazz, id);
+        if (cachedEntity != null) {
+            return cachedEntity;
+        }
+
+        // If not in cache, query database
         String tableName = clazz.getAnnotation(Table.class).name();
         String sql = "SELECT * FROM `" + tableName + "` WHERE id = ?";
 
@@ -114,7 +133,10 @@ public class CRUDManager {
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                return mapResultSetToEntity(rs, clazz);
+                T entity = mapResultSetToEntity(rs, clazz);
+                // Store in cache
+                cacheManager.put(clazz, id, entity);
+                return entity;
             }
 
         } catch (SQLException | ReflectiveOperationException e) {
@@ -226,6 +248,15 @@ public class CRUDManager {
                 System.out.println("❌ No entity found to update");
             }
 
+            // After successful update, update cache
+            try {
+                int id = getEntityId(entity);
+                @SuppressWarnings("unchecked") T cachedEntity = (T) entity;
+                cacheManager.put((Class<T>)entity.getClass(), id, cachedEntity);
+            } catch (IllegalAccessException e) {
+                System.err.println("❌ Error updating cache: " + e.getMessage());
+            }
+
         } catch (SQLException | IllegalAccessException e) {
             System.err.println("❌ Error updating entity: " + e.getMessage());
         }
@@ -251,6 +282,9 @@ public class CRUDManager {
                 System.out.println("❌ No entity found to delete");
             }
 
+            // After successful delete, invalidate cache
+            cacheManager.invalidate(clazz, id);
+
         } catch (SQLException e) {
             System.err.println("❌ Error deleting entity: " + e.getMessage());
         }
@@ -266,4 +300,14 @@ public class CRUDManager {
             throw new RuntimeException("Transaction failed: " + e.getMessage(), e);
         }
     }
-} 
+
+    // Add method to clear cache
+    public static void clearCache() {
+        cacheManager.clear();
+    }
+
+    // Add method to get cache statistics
+    public static String getCacheStats() {
+        return cacheManager.getStats();
+    }
+}
